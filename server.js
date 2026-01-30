@@ -128,6 +128,27 @@ const EVENT_COLOR_MAP = {
   가족: '5'         // 노랑 (#F4B400)
 };
 
+// Pattern rules for type inference
+const PATTERN_RULES = {
+  가족: ['가족으로', '가족에', '가족과', '가족'],
+  업무: ['업무로', '업무에', '업무', '회의', '사업', '업무로 등록'],
+  자기계발: ['자기계발', '공부', '독서', '운동', '학습', '자기계발로'],
+  개인: ['개인으로', '개인에', '개인적', '개인']
+};
+
+// Infer type from summary
+function inferType(summary) {
+  if (!summary) return null;
+  for (const [type, patterns] of Object.entries(PATTERN_RULES)) {
+    for (const pattern of patterns) {
+      if (summary.includes(pattern)) {
+        return type;
+      }
+    }
+  }
+  return null;
+}
+
 // Create calendar event
 app.post('/events', async (req, res) => {
   if (!storedTokens) {
@@ -143,7 +164,10 @@ app.post('/events', async (req, res) => {
   try {
     oauth2Client.setCredentials(storedTokens);
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
-    
+
+    // Infer type from summary if not provided
+    const inferredType = type || inferType(summary);
+
     const event = {
       summary,
       description,
@@ -158,8 +182,8 @@ app.post('/events', async (req, res) => {
     };
 
     // Apply color based on event type
-    if (type && EVENT_COLOR_MAP[type]) {
-      event.colorId = EVENT_COLOR_MAP[type];
+    if (inferredType && EVENT_COLOR_MAP[inferredType]) {
+      event.colorId = EVENT_COLOR_MAP[inferredType];
     }
 
     const response = await calendar.events.insert({
